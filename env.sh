@@ -37,5 +37,5 @@ fi
 export IMAGE_CRONTAB_FILE="${IMAGE_CRONTAB_FILE:-/etc/borgmatic.d/crontab}"
 
 # IMAGE_EXPORTER_PORT=   # no default value, defining it enables the exporter service
-IMAGE_METRICS_DIR=${IMAGE_METRICS_DIR:-/prometheus}
-IMAGE_METRICS_FILENAME=${IMAGE_METRICS_FILENAME:-metrics}
+export IMAGE_METRICS_DIR=${IMAGE_METRICS_DIR:-/prometheus}
+export IMAGE_METRICS_FILENAME=${IMAGE_METRICS_FILENAME:-metrics}
