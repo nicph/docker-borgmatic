@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+
+# Borg metrics exporter for prometheus
+# Reads resuls of `borg info --json ...` from stdin and writes metrics on
+# stdout
+
+import argparse
+import json
+import os
+import platform
+import sys
+
+
+from prometheus_client import Gauge, generate_latest
+
+if __name__ == "__main__":
+
+    envvars = ["IMAGE_METRICS_DIR", "IMAGE_METRICS_FILENAME"]
+    envvars = [os.environ.get(v) for v in envvars]
+    envfile = "/".join([v for v in envvars if v])
+
+    parser = argparse.ArgumentParser(prog="borg_exporter")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-o", "--output", help="output file, `-` to write to stdout")
+    group.add_argument(
+        "-e",
+        "--env",
+        action="store_const",
+        const=envfile,
+        dest="output",
+        help="Uses predefined env vars to define the output path"
+        + " $IMAGE_METRICS_DIR"
+        + "/$IMAGE_METRICS_FILENAME :"
+        + '"%s"' % (envfile),
+    )
+    options = parser.parse_args()
+
+    stats = json.load(sys.stdin)
+
+    def get(path):
+        mapping = stats
+        for k in path.split("."):
+            mapping = mapping[k]
+        return mapping
+
+    def gauge(path, desc, prefix="borg"):
+        name = "_".join([prefix, *path.split(".")])
+        value = get(path)
+        Gauge(name, desc, labels.keys()).labels(**labels).set(value)
+
+    labels = {
+        "id": get("repository.id"),
+        "location": get("repository.location"),
+        "encryption": get("encryption.mode"),
+        "hostname": platform.node(),
+    }
+
+    gauge("archive.duration", "Duration of archive creation")
+    gauge("archive.stats.nfiles", "Number of files in archive")
+    gauge("archive.stats.original_size", "Original size of archive")
+    gauge("archive.stats.compressed_size", "Compressed size of archive")
+    gauge("archive.stats.deduplicated_size", "Deduplicated size of archive")
+
+    gauge("cache.stats.total_chunks", "Repository total chunks")
+    gauge("cache.stats.total_unique_chunks", "Repository unique chunks")
+
+    gauge("cache.stats.total_size", "All archives original size")
+    gauge("cache.stats.total_csize", "All archives compressed size")
+    gauge("cache.stats.unique_size", "All archives deduplicated size")
+    gauge("cache.stats.unique_csize", "All archives deduplicated compressed size")
+
+    metrics_bytes = generate_latest()
+
+    output = options.output
+    if output is None or output == "-":
+        out = sys.stdout.buffer
+    else:
+        out = open(options.output, "wb")
+
+    with out:
+        out.write(metrics_bytes)
