@@ -24,7 +24,7 @@ This image uses alpine's [dcron](http://www.jimpryor.net/linux/dcron.html).
 Here is an example file :
 ```
 # min hour   day month weekday command
-  0   4-23/4 *   *     *       borgmatic --create --prune --stats
+  0   4-23/4 *   *     *       borgmatic --create --prune --json | borg_exporter -e
   0   5      *   *     2,4,6   borgmatic --check
 ```
 
@@ -46,7 +46,8 @@ Variables](#image-variables)).
 
 The easiest way to generate the metric in this image is to add the command
 `borgmatic --info --json | borg_exporter -e` in the  `after_backup` hook of
-your borgmatic configuration.
+your borgmatic configuration, or to pipe the output of `borgmatic --create
+--json` to the exporter in the crontab.
 
 It is also possible to expose those metrics over http, by setting up the
 variable `IMAGE_EXPORTER_PORT`. A simple http server will be listening at the

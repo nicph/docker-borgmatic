@@ -13,6 +13,45 @@ import sys
 
 from prometheus_client import Gauge, generate_latest
 
+def gen_metrics(stats):
+
+    def get(path):
+        mapping = stats
+        for k in path.split("."):
+            mapping = mapping[k]
+        return mapping
+
+    def gauge(path, desc, prefix="borg"):
+        name = "_".join([prefix, *path.split(".")])
+        value = get(path)
+        Gauge(name, desc, labels.keys()).labels(**labels).set(value)
+
+    labels = {
+        "id": get("repository.id"),
+        "location": get("repository.location"),
+        "encryption": get("encryption.mode"),
+        "hostname": platform.node(),
+    }
+
+    # available in create's output, ignore if absent
+    try:
+      gauge("archive.duration", "Duration of archive creation")
+      gauge("archive.stats.nfiles", "Number of files in archive")
+      gauge("archive.stats.original_size", "Original size of archive")
+      gauge("archive.stats.compressed_size", "Compressed size of archive")
+      gauge("archive.stats.deduplicated_size", "Deduplicated size of archive")
+    except:
+      pass
+
+    gauge("cache.stats.total_chunks", "Repository total chunks")
+    gauge("cache.stats.total_unique_chunks", "Repository unique chunks")
+
+    gauge("cache.stats.total_size", "All archives original size")
+    gauge("cache.stats.total_csize", "All archives compressed size")
+    gauge("cache.stats.unique_size", "All archives deduplicated size")
+    gauge("cache.stats.unique_csize", "All archives deduplicated compressed size")
+
+
 if __name__ == "__main__":
 
     envvars = ["IMAGE_METRICS_DIR", "IMAGE_METRICS_FILENAME"]
@@ -37,37 +76,12 @@ if __name__ == "__main__":
 
     stats = json.load(sys.stdin)
 
-    def get(path):
-        mapping = stats
-        for k in path.split("."):
-            mapping = mapping[k]
-        return mapping
+    #borg outputs a json object, bormatic exports an array of borg output
+    if not isinstance(stats, list):
+      stats = [stats]
 
-    def gauge(path, desc, prefix="borg"):
-        name = "_".join([prefix, *path.split(".")])
-        value = get(path)
-        Gauge(name, desc, labels.keys()).labels(**labels).set(value)
-
-    labels = {
-        "id": get("repository.id"),
-        "location": get("repository.location"),
-        "encryption": get("encryption.mode"),
-        "hostname": platform.node(),
-    }
-
-    gauge("archive.duration", "Duration of archive creation")
-    gauge("archive.stats.nfiles", "Number of files in archive")
-    gauge("archive.stats.original_size", "Original size of archive")
-    gauge("archive.stats.compressed_size", "Compressed size of archive")
-    gauge("archive.stats.deduplicated_size", "Deduplicated size of archive")
-
-    gauge("cache.stats.total_chunks", "Repository total chunks")
-    gauge("cache.stats.total_unique_chunks", "Repository unique chunks")
-
-    gauge("cache.stats.total_size", "All archives original size")
-    gauge("cache.stats.total_csize", "All archives compressed size")
-    gauge("cache.stats.unique_size", "All archives deduplicated size")
-    gauge("cache.stats.unique_csize", "All archives deduplicated compressed size")
+    for s in stats:
+      gen_metrics(s)
 
     metrics_bytes = generate_latest()
 
