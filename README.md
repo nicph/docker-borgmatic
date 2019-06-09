@@ -91,8 +91,8 @@ services:
         target: /borg/crontab.node_hostname_1
       - source: crontab-node_hostname_2
         target: /borg/crontab.node_hostname_2
-      - source: known_host
-        target: /borg/known_host
+      - source: known_hosts
+        target: /borg/known_hosts
 
     secrets:
       - source: ssh-key
@@ -112,8 +112,8 @@ configs:
     file: /path/to/crontab.node_hostname_1
   crontab-node_hostname_2:
     file: /path/to/crontab.node_hostname_2
-  known_host:
-    file: /path/to/known_host
+  known_hosts:
+    file: /path/to/known_hosts
 
 secrets:
    ssh-key:
