@@ -11,10 +11,10 @@ import platform
 import sys
 
 
-from prometheus_client import Gauge, generate_latest
+from prometheus_client import Gauge, generate_latest, push_to_gateway
+
 
 def gen_metrics(stats):
-
     def get(path):
         mapping = stats
         for k in path.split("."):
@@ -35,13 +35,13 @@ def gen_metrics(stats):
 
     # available in create's output, ignore if absent
     try:
-      gauge("archive.duration", "Duration of archive creation")
-      gauge("archive.stats.nfiles", "Number of files in archive")
-      gauge("archive.stats.original_size", "Original size of archive")
-      gauge("archive.stats.compressed_size", "Compressed size of archive")
-      gauge("archive.stats.deduplicated_size", "Deduplicated size of archive")
+        gauge("archive.duration", "Duration of archive creation")
+        gauge("archive.stats.nfiles", "Number of files in archive")
+        gauge("archive.stats.original_size", "Original size of archive")
+        gauge("archive.stats.compressed_size", "Compressed size of archive")
+        gauge("archive.stats.deduplicated_size", "Deduplicated size of archive")
     except:
-      pass
+        pass
 
     gauge("cache.stats.total_chunks", "Repository total chunks")
     gauge("cache.stats.total_unique_chunks", "Repository unique chunks")
@@ -54,42 +54,44 @@ def gen_metrics(stats):
 
 if __name__ == "__main__":
 
-    envvars = ["IMAGE_METRICS_DIR", "IMAGE_METRICS_FILENAME"]
-    envvars = [os.environ.get(v) for v in envvars]
-    envfile = "/".join([v for v in envvars if v])
-
     parser = argparse.ArgumentParser(prog="borg_exporter")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-o", "--output", help="output file, `-` to write to stdout")
     group.add_argument(
-        "-e",
-        "--env",
-        action="store_const",
-        const=envfile,
-        dest="output",
-        help="Uses predefined env vars to define the output path"
-        + " $IMAGE_METRICS_DIR"
-        + "/$IMAGE_METRICS_FILENAME :"
-        + '"%s"' % (envfile),
+        "-p",
+        "--push",
+        const="pushgateway:9091",
+        metavar="TARGET:PORT",
+        default=None,
+        action="store",
+        nargs="?",
+        help="Push metrics to target instead of writing to a file. "
+        + "If this option is used without specifying a target, "
+        + "`pushgateway:9091` is used by default",
     )
+
     options = parser.parse_args()
 
     stats = json.load(sys.stdin)
 
-    #borg outputs a json object, bormatic exports an array of borg output
+    # borg outputs a json object, bormatic exports an array of borg output
     if not isinstance(stats, list):
-      stats = [stats]
+        stats = [stats]
 
     for s in stats:
-      gen_metrics(s)
+        gen_metrics(s)
 
-    metrics_bytes = generate_latest()
+    if options.push is not None:
+        push_to_gateway(options.push, job="borg")
 
-    output = options.output
-    if output is None or output == "-":
-        out = sys.stdout.buffer
     else:
-        out = open(options.output, "wb")
+        metrics_bytes = generate_latest()
 
-    with out:
-        out.write(metrics_bytes)
+        output = options.output
+        if output is None or output == "-":
+            out = sys.stdout.buffer
+        else:
+            out = open(options.output, "wb")
+
+        with out:
+            out.write(metrics_bytes)

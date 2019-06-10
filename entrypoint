@@ -12,11 +12,4 @@ fi
 
 crontab "${IMAGE_CRONTAB_FILE}"
 
-if [ -n "${IMAGE_EXPORTER_PORT}" ]; then
-  mkdir -p "${IMAGE_METRICS_DIR}"
-  cd "${IMAGE_METRICS_DIR}"
-  python3 -m http.server "${IMAGE_EXPORTER_PORT}" &
-  cd -
-fi
-
 exec crond -f -L /dev/stdout

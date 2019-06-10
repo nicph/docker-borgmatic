@@ -24,7 +24,7 @@ This image uses alpine's [dcron](http://www.jimpryor.net/linux/dcron.html).
 Here is an example file :
 ```
 # min hour   day month weekday command
-  0   4-23/4 *   *     *       borgmatic --create --prune --json | borg_exporter -e
+  0   4-23/4 *   *     *       borgmatic --create --prune --json | borg_exporter -p
   0   5      *   *     2,4,6   borgmatic --check
 ```
 
@@ -40,19 +40,13 @@ see the [Configuration example](#configuration-example).
 The image provides the script `borg_exporter`. The script reads from stdin the
 output of `borg info ... --json` and generates metrics for prometheus. With no
 options the script writes to stdout, to write in a file use `borg_exporter -o
-target_file`. The `-e` option writes the metrics to the file determined by
-`$IMAGE_METRICS_DIR/$IMAGE_METRICS_FILENAME` environment variables (see [Image
-Variables](#image-variables)).
+target_file`. The `-p` option pushes the metrics to the specified pushgateway 
+or if not specified to `pushgateway:9091`
 
 The easiest way to generate the metric in this image is to add the command
-`borgmatic --info --json | borg_exporter -e` in the  `after_backup` hook of
-your borgmatic configuration, or to pipe the output of `borgmatic --create
---json` to the exporter in the crontab.
-
-It is also possible to expose those metrics over http, by setting up the
-variable `IMAGE_EXPORTER_PORT`. A simple http server will be listening at the
-given port, serving the metrics on
-`http://container_address:$IMAGE_EXPORTER_PORT/$IMAGE_METRICS_FILENAME`.
+`borgmatic --info --json | borg_exporter -p target:port` in the  `after_backup`
+hook of your borgmatic configuration, or to pipe the output of `borgmatic
+--create --json` to the exporter in the crontab.
 
 ## Configuration example
 
@@ -103,7 +97,6 @@ services:
 
     environment:
       IMAGE_CRONTAB_FILE: '/borg/crontab.{{.Node.Hostname}}'
-      IMAGE_EXPORTER_PORT: 9100
 
 
 configs:
@@ -169,9 +162,6 @@ If `SSH_OPTS` is not empty, `BORG_RSH` will be set to `ssh ${SSH_OPTS}`, or
 | Variable                 | description                                 | default value              |
 | ---                      | ---                                         | ---                        |
 | `IMAGE_CRONTAB_FILE`     | Path to the crontab file to be loaded       | `/etc/borgmatic.d/crontab` |
-| `IMAGE_EXPORTER_PORT`    | Port for the borg exporter service          | `None`                     |
-| `IMAGE_METRICS_DIR`      | Dir into witch will be written borg metrics | `/prometheus`              |
-| `IMAGE_METRICS_FILENAME` | Borg metrics filename                       | `metrics`                  |
 
 
 ## References
