@@ -1,7 +1,7 @@
 FROM alpine AS borg
 
-ARG BORG_VERSION=1.1.10
-ARG BORGMATIC_VERSION=1.4.17
+ARG BORG_VERSION=1.1.11
+ARG BORGMATIC_VERSION=1.5.2
 
 # https://borgbackup.readthedocs.io/en/stable/installation.html#dependencies
 RUN apk add --upgrade --no-cache \
